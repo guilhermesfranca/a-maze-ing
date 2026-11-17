@@ -1,5 +1,5 @@
 import sys
-from a_maze_ing import MazeVisualizer
+from a_maze_ing_FIXED import MazeVisualizer
 from parse_config import parse_config
 
 def main() -> None:

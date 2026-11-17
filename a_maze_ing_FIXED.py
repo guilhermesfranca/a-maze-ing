@@ -18,11 +18,12 @@ class MazeGenerator:
             (x, y): {"N": True, "S": True, "E": True, "W": True}
             for y in range(self.height) for x in range(self.width)
         }
-        visited = [[False for _ in range(self.width)] for _ in range(self.height)]
+        visited = [
+            [False for _ in range(self.width)] for _ in range(self.height)]
 
-        def set_42() -> list[tuple[int,int]]:
-            x = self.width #largura(linha)
-            y = self.height #Altura(coluna)
+        def set_42() -> list[tuple[int, int]]:
+            x = self.width   # largura(linha)
+            y = self.height   # Altura(coluna)
             block = []
             if x % 2:
                 f_x, t_x = (x // 2) - 3, (x // 2) + 1
@@ -33,13 +34,18 @@ class MazeGenerator:
             else:
                 f_y, t_y = (y // 2) - 3, (y // 2) - 2
             for i in range(5):
-                if i <= 2: block.append((f_x + 0, f_y + i))
-                if i == 2: block.append((f_x + 1, f_y + i))
+                if i <= 2:
+                    block.append((f_x + 0, f_y + i))
+                if i == 2:
+                    block.append((f_x + 1, f_y + i))
                 block.append((f_x + 2, f_y + i))
             for i in range(5):
-                if i != 1: block.append((t_x + 0, t_y + i))
-                if i not in [1, 3]: block.append((t_x + 1, t_y + i))
-                if i != 3: block.append((t_x + 2, t_y + i))
+                if i != 1:
+                    block.append((t_x + 0, t_y + i))
+                if i not in [1, 3]:
+                    block.append((t_x + 1, t_y + i))
+                if i != 3:
+                    block.append((t_x + 2, t_y + i))
             return block
 
         def get_neighbors(x: int, y: int) -> List[Tuple[int, int, str, str]]:
@@ -60,11 +66,10 @@ class MazeGenerator:
             for bx, by in block:
                 visited[by][bx] = True
 
-
         while stack:
             cx, cy = stack[-1]
             neighbors = get_neighbors(cx, cy)
-            
+
             if neighbors:
                 nx, ny, dir_go, dir_back = random.choice(neighbors)
                 self.cells[(cx, cy)][dir_go] = False
@@ -93,12 +98,12 @@ class MazeGenerator:
             ry = random.randint(0, self.height - 2)
             direcao = random.choice(["E", "S"])
             cell = self.cells[rx, ry]
-            
+
             # Verificação rápida: célula já tem paredes abertas?
             block = all(cell[d] for d in ["N", "S", "E", "W"])
             if block:
                 continue
-            
+
             # Tenta direção E
             if direcao == "E" and rx + 1 < self.width:
                 cell_e = self.cells[rx + 1, ry]
@@ -107,7 +112,7 @@ class MazeGenerator:
                     self.cells[(rx, ry)]["E"] = False
                     self.cells[(rx + 1, ry)]["W"] = False
                     continue
-            
+
             # Tenta direção S
             if direcao == "S" and ry + 1 < self.height:
                 cell_s = self.cells[rx, ry + 1]
@@ -123,13 +128,13 @@ class MazeVisualizer:
         self.generator: MazeGenerator = MazeGenerator(config.width, config.height)
         self.cells = self.generator.generate(self.config.perfect)
         self.wall_color: str = "cyan"
-        
-        # 🚀 OTIMIZAÇÃO: Pré-calcular cores BGRA
+
+        # OTIMIZAÇÃO: Pré-calcular cores BGRA
         self.cor_vermelha = bytes([0x00, 0x00, 0xFF, 0xFF])
         self.cor_azul = bytes([0xFF, 0x00, 0x00, 0xFF])
         self.cor_amarelo = bytes([0x00, 0xFF, 0xFF, 0xFF])
         self.cor_verde = bytes([0x00, 0xFF, 0x00, 0xFF])
-        
+
         # Variáveis de estado MLX
         self.mlx = None
         self.mlx_ptr = None
@@ -142,16 +147,19 @@ class MazeVisualizer:
         self.tamanho = 20
 
     def _draw_rect(self, x_start: int, y_start: int, w: int, h: int, color: bytes) -> None:
-        """🚀 OTIMIZAÇÃO: Desenho otimizado de retângulos"""
+        """OTIMIZAÇÃO: Desenho otimizado de retângulos"""
         for y in range(y_start, y_start + h):
             for x in range(x_start, x_start + w):
                 offset = (y * self.sl) + (x * 4)
                 self.data[offset:offset + 4] = color
 
     def _create_image(self, width: int, height: int) -> None:
-        """✅ FIX: Cria nova imagem com dados válidos"""
+        """FIX: Cria nova imagem com dados válidos"""
         self.img_ptr = self.mlx.mlx_new_image(self.mlx_ptr, width, height)
         self.data, self.bpp, self.sl, self.fmt = self.mlx.mlx_get_data_addr(self.img_ptr)
+
+        for i in range(0, len(self.data), 4):
+            self.data[i:i+4] = bytes([0x00, 0x00, 0x00, 0xFF])
 
     def draw_maze(self, tamanho: int) -> None:
         """Desenha o labirinto no buffer"""
@@ -186,7 +194,7 @@ class MazeVisualizer:
             if key == 65307:  # ESC
                 os._exit(0)
             if key == 32:  # ESPAÇO
-                # ✅ FIX: Regenera o labirinto e cria nova imagem
+                # FIX: Regenera o labirinto e cria nova imagem
                 self.mlx.mlx_clear_window(self.mlx_ptr, self.win_ptr)
                 self.mlx.mlx_destroy_image(self.mlx_ptr, self.img_ptr)
                 
@@ -212,7 +220,7 @@ class MazeVisualizer:
         self.mlx.mlx_key_hook(self.win_ptr, on_key, None)
         self.mlx.mlx_hook(self.win_ptr, 33, 0, lambda p: os._exit(0), None)
 
-        # ✅ FIX: Cria imagem corretamente
+        # FIX: Cria imagem corretamente
         self._create_image(width, height)
 
         self.draw_maze(self.tamanho)
