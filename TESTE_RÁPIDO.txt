@@ -1,0 +1,54 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                     TESTE RÁPIDO DO BUG CORRIGIDO                         ║
+║                     ⏱️ Leva 30 segundos                                    ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+ANTES DE TESTAR:
+  1. Abra um terminal
+  2. Vá para a pasta do projeto:
+     $ cd /Users/guilhermefranca/42/python/a-maze-ing
+
+  3. Limpe o cache Python:
+     $ rm -rf __pycache__
+
+  4. EXECUTE:
+     $ python3 main.py config.txt
+
+TESTE:
+  ✅ Espere a janela abrir
+  ✅ Verá um labirinto com "42" no meio (azul)
+  ✅ Entrada (amarelo) e saída (verde) visíveis
+
+TESTE DO BUG CORRIGIDO:
+  🔑 Pressione ESPAÇO rapidamente 5 VEZES
+
+  Após cada pressionada, você deve ver:
+    1º ESPAÇO → Novo labirinto limpo
+    2º ESPAÇO → Novo labirinto limpo (NÃO crescimento de grades!)
+    3º ESPAÇO → Novo labirinto limpo (Sem artefatos!)
+    4º ESPAÇO → Novo labirinto limpo (Sempre igual!)
+    5º ESPAÇO → Novo labirinto limpo (Nenhuma degradação!)
+
+RESULTADO ESPERADO:
+  ✅ Sempre ~400 quadrados azuis (o "42")
+  ✅ Sem crescimento indefinido
+  ✅ Sem artefatos ou lixo na tela
+  ✅ Sem lag progressivo
+
+RESULTADO SE TIVER BUG (DON'T EXPECT THIS):
+  ❌ Grades crescem: 400 → 600 → 750 → 900
+  ❌ Aparecem artefatos/lixo
+  ❌ Programa fica lento
+  ❌ Memória aumenta
+  → Se isso acontecer, contate o desenvolvedor!
+
+FECHAR:
+  🔑 Pressione ESC para fechar a janela
+
+═══════════════════════════════════════════════════════════════════════════════
+
+RESULTADO:
+  ✅ Se conseguir pressionar ESPAÇO 5x sem problemas → BUG CORRIGIDO! 🎉
+  ❌ Se tiver problema → Ver documentação em files/TESTE_VERIFICACAO.md
+
+═══════════════════════════════════════════════════════════════════════════════
