@@ -1,38 +1,43 @@
 import random
-import tkinter as tk
 from collections import deque
-from typing import List, Tuple, Dict, Optional
-from parse_config import export_maze, MazeConfig
+from typing import List, Tuple, Dict, Any
+from parse_config import MazeConfig
 from mlx import Mlx
 import os
 
 
-class MazeGenerator:
+class MazeGen:
+    """Create a reproducible DFS Maze witha a 42 logo"""
     def __init__(self, width: int, height: int) -> None:
         self.width: int = width
         self.height: int = height
         self.cells: Dict[Tuple[int, int], Dict[str, bool]] = {}
 
-    def generate(self, perfect: bool) -> Dict[Tuple[int, int], Dict[str, bool]]:
+    def generate(
+            self, perfect: bool
+            ) -> Dict[Tuple[int, int], Dict[str, bool]]:
+        """Generate the maze and return the wall structure"""
         self.cells = {
             (x, y): {"N": True, "S": True, "E": True, "W": True}
             for y in range(self.height) for x in range(self.width)
         }
         visited = [
-            [False for _ in range(self.width)] for _ in range(self.height)]
+            [False for _ in range(self.width)] for _ in range(self.height)
+        ]
 
         def set_42() -> list[tuple[int, int]]:
-            x = self.width   # largura(linha)
-            y = self.height   # Altura(coluna)
+            """Reserve the 42 Block"""
+            midround_x: int = self.width // 2
+            midround_y: int = self.height // 2
             block = []
-            if x % 2:
-                f_x, t_x = (x // 2) - 3, (x // 2) + 1
+            if self.width % 2:
+                f_x, t_x = midround_x - 3, midround_x + 1
             else:
-                f_x, t_x = (x // 2) - 4, (x // 2) + 1
-            if y % 2:
-                f_y, t_y = (y // 2) - 2, (y // 2) - 2
+                f_x, t_x = midround_x - 4, midround_x + 1
+            if self.height % 2:
+                f_y, t_y = midround_y - 2, midround_y - 2
             else:
-                f_y, t_y = (y // 2) - 3, (y // 2) - 2
+                f_y, t_y = midround_y - 3, midround_y - 2
             for i in range(5):
                 if i <= 2:
                     block.append((f_x + 0, f_y + i))
@@ -50,11 +55,16 @@ class MazeGenerator:
 
         def get_neighbors(x: int, y: int) -> List[Tuple[int, int, str, str]]:
             neighbors = []
-            directions = [(0, -1, "N", "S"), (0, 1, "S", "N"), (-1, 0, "W", "E"), (1, 0, "E", "W")]
+            directions = [
+                (0, -1, "N", "S"), (0, 1, "S", "N"),
+                (-1, 0, "W", "E"), (1, 0, "E", "W")]
+
             for dx, dy, dir_go, dir_back in directions:
                 nx, ny = x + dx, y + dy
-                if 0 <= nx < self.width and 0 <= ny < self.height and not visited[ny][nx]:
-                    neighbors.append((nx, ny, dir_go, dir_back))
+                if 0 <= nx < self.width and 0 <= ny < self.height:
+                    if not visited[ny][nx]:
+                        neighbors.append((nx, ny, dir_go, dir_back))
+
             return neighbors
 
         start_x, start_y = 0, 0
@@ -125,193 +135,215 @@ class MazeGenerator:
 class MazeVisualizer:
     def __init__(self, config: MazeConfig) -> None:
         self.config: MazeConfig = config
-        self.generator: MazeGenerator = MazeGenerator(config.width, config.height)
+        self.generator: MazeGen = MazeGen(config.width, config.height)
         self.cells = self.generator.generate(self.config.perfect)
-        self.wall_color: str = "cyan"
+        self.w_color: str = "red"
+        self.ft_color: str = "blue"
 
         # OTIMIZAÇÃO: Pré-definir as cores BGRA
-        self.cor_vermelha = bytes([0x00, 0x00, 0xFF, 0xFF])
-        self.cor_azul = bytes([0xFF, 0x00, 0x00, 0xFF])
-        self.cor_amarelo = bytes([0x00, 0xFF, 0xFF, 0xFF])
-        self.cor_verde = bytes([0x00, 0xFF, 0x00, 0xFF])
+        self.colors: Dict[str, bytes] = {
+            "red": bytes([0x00, 0x00, 0xFF, 0xFF]),
+            "blue": bytes([0xFF, 0x00, 0x00, 0xFF]),
+            "yellow": bytes([0x00, 0xFF, 0xFF, 0xFF]),
+            "green": bytes([0x00, 0xFF, 0x00, 0xFF])}
 
         # Variáveis de estado MLX
-        self.mlx = 0
-        self.mlx_ptr = 0
-        self.win_ptr = 0
-        self.img_ptr = 0
-        self.data = None
-        self.bpp = None
-        self.sl = None
-        self.fmt = None
-        self.tamanho = 20
+        self.key_pressed: bool = False
+        self.mlx: Any
+        self.mlx_ptr: Any
+        self.win_ptr: Any
+        self.img_ptr: Any
+        self.data: Any
+        self.sl: Any
+        self.size = 20
 
-    def _draw_rect(self, x_start: int, y_start: int, w: int, h: int, color: bytes) -> None:
+    def draw_rect(
+            self, x_start: int, y_start: int,
+            w: int, h: int, color: bytes
+            ) -> None:
         """OTIMIZAÇÃO: Desenho otimizado de retângulos"""
+        if self.data is None:
+            raise RuntimeError("data nao existe")
         for y in range(y_start, y_start + h):
             for x in range(x_start, x_start + w):
                 offset = (y * self.sl) + (x * 4)
                 self.data[offset:offset + 4] = color
 
-    def _create_image(self, width: int, height: int) -> None:
+    def create_image(self, width: int, height: int) -> None:
         """FIX: Cria nova imagem com dados válidos"""
         self.img_ptr = self.mlx.mlx_new_image(self.mlx_ptr, width, height)
-        self.data, self.bpp, self.sl, self.fmt = self.mlx.mlx_get_data_addr(self.img_ptr)
+        self.data, bpp, self.sl, fmt = self.mlx.mlx_get_data_addr(self.img_ptr)
 
         for i in range(0, len(self.data), 4):
             self.data[i:i+4] = bytes([0x00, 0x00, 0x00, 0xFF])
 
-    def draw_maze(self, tamanho: int) -> None:
+    def draw_maze(self, size: int) -> None:
         """Desenha o labirinto no buffer"""
-        for grid_x_y, true_false in self.cells.items():
-            x_inicio = grid_x_y[0] * tamanho + tamanho
-            y_inicio = grid_x_y[1] * tamanho + tamanho
+        for grid_x_y, dir in self.cells.items():
+            x_start = grid_x_y[0] * size + size
+            y_start = grid_x_y[1] * size + size
 
             # Célula totalmente fechada (ex: o desenho do "42")
-            if all(true_false[i] for i in ["N", "S", "E", "W"]):
-                self._draw_rect(x_inicio + 2, y_inicio + 2, tamanho - 4, tamanho - 4, self.cor_azul)
+            if all(dir[i] for i in ["N", "S", "E", "W"]):
+                self.draw_rect(
+                    x_start + 2, y_start + 2,
+                    size - 4, size - 4, self.colors[self.ft_color])
 
             # Entrada
             if self.config.entry == grid_x_y:
-                self._draw_rect(x_inicio + 3, y_inicio + 3, tamanho - 7, tamanho - 7, self.cor_amarelo)
+                self.draw_rect(
+                    x_start + 3, y_start + 3,
+                    size - 7, size - 7, self.colors["yellow"])
 
             # Saída
             if self.config.exit_cell == grid_x_y:
-                self._draw_rect(x_inicio + 3, y_inicio + 3, tamanho - 7, tamanho - 7, self.cor_verde)
+                self.draw_rect(
+                    x_start + 3, y_start + 3,
+                    size - 7, size - 7, self.colors["green"])
 
             # Paredes
-            if true_false["N"]:
-                self._draw_rect(x_inicio, y_inicio, tamanho, 2, self.cor_vermelha)
-            if true_false["S"]:
-                self._draw_rect(x_inicio, y_inicio + tamanho - 2, tamanho, 2, self.cor_vermelha)
-            if true_false["E"]:
-                self._draw_rect(x_inicio + tamanho - 2, y_inicio, 2, tamanho, self.cor_vermelha)
-            if true_false["W"]:
-                self._draw_rect(x_inicio, y_inicio, 2, tamanho, self.cor_vermelha)
+            if dir["N"]:
+                self.draw_rect(
+                    x_start, y_start, size, 2, self.colors[self.w_color])
+
+            if dir["S"]:
+                self.draw_rect(
+                    x_start, y_start + size - 2, size, 2,
+                    self.colors[self.w_color])
+
+            if dir["E"]:
+                self.draw_rect(
+                    x_start + size - 2, y_start, 2, size,
+                    self.colors[self.w_color])
+
+            if dir["W"]:
+                self.draw_rect(
+                    x_start, y_start, 2, size, self.colors[self.w_color])
 
     def make(self) -> None:
-        def on_key(key, param):
+        def on_key(key: Any, param: Any) -> None:
             if key == 65307:  # ESC
                 os._exit(0)
+            if key == 82 or key == 114:
+                self.key_pressed = False
+            if key == 32:
+                self.key_pressed = False
+            if key == 99 or key == 67:
+                self.key_pressed = False
+
+        def on_keypress(key: Any, param: Any) -> None:
             if key == 32:  # ESPAÇO
                 # FIX: Regenera o labirinto e cria nova imagem
+                if self.key_pressed:
+                    return
+                self.key_pressed = True
+
                 self.mlx.mlx_clear_window(self.mlx_ptr, self.win_ptr)
                 self.mlx.mlx_destroy_image(self.mlx_ptr, self.img_ptr)
-                
+
                 # Gera novo labirinto
                 self.cells = self.generator.generate(self.config.perfect)
-                
-                #  IMPORTANTE: Cria nova imagem com dados válidos
-                self._create_image(width, height)
-                
-                # Desenha no novo buffer
-                self.draw_maze(self.tamanho)
-                
-                # Mostra na janela
-                self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
 
-        width = self.config.width * self.tamanho + (self.tamanho * 2)
-        height = self.config.height * self.tamanho + (self.tamanho * 2)
+                #  IMPORTANTE: Cria nova imagem com dados válidos
+                self.create_image(width, height)
+
+                # Desenha no novo buffer
+                self.draw_maze(self.size)
+
+                # Mostra na janela
+                self.mlx.mlx_put_image_to_window(
+                    self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+
+            if key == 99 or key == 67:  # C ou c
+                # FIX: Regenera o labirinto e cria nova imagem
+                if self.key_pressed:
+                    return
+                self.key_pressed = True
+
+                self.mlx.mlx_clear_window(self.mlx_ptr, self.win_ptr)
+                self.mlx.mlx_destroy_image(self.mlx_ptr, self.img_ptr)
+
+                while True:
+                    self.w_color = random.choice(list(self.colors.keys()))
+                    self.ft_color = random.choice(list(self.colors.keys()))
+                    if self.w_color != self.ft_color:
+                        break
+
+                #  IMPORTANTE: Cria nova imagem com dados válidos
+                self.create_image(width, height)
+
+                # Desenha no novo buffer
+                self.draw_maze(self.size)
+
+                # Mostra na janela
+                self.mlx.mlx_put_image_to_window(
+                    self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+
+            if key == 82 or key == 114:  # R ou r
+                if self.key_pressed:
+                    return
+                self.key_pressed = True
+
+                result = self.draw_resolution()
+                for x, y in result:
+                    x = x * self.size + self.size
+                    y = y * self.size + self.size
+
+                    self.draw_rect(
+                        x + 2, y + 2,
+                        self.size - 4, self.size - 4, self.colors["yellow"])
+
+                self.mlx.mlx_put_image_to_window(
+                    self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+
+        width = self.config.width * self.size + (self.size * 2)
+        height = self.config.height * self.size + (self.size * 2)
 
         self.mlx = Mlx()
         self.mlx_ptr = self.mlx.mlx_init()
-        self.win_ptr = self.mlx.mlx_new_window(self.mlx_ptr, width, height, "a-maze-ing")
+        self.win_ptr = self.mlx.mlx_new_window(
+        self.mlx_ptr, width, height, "a-maze-ing")
 
         self.mlx.mlx_key_hook(self.win_ptr, on_key, None)
+        self.mlx.mlx_hook(self.win_ptr, 2, 1, on_keypress, None)
         self.mlx.mlx_hook(self.win_ptr, 33, 0, lambda p: os._exit(0), None)
 
         # FIX: Cria imagem corretamente
-        self._create_image(width, height)
+        self.create_image(width, height)
 
-        self.draw_maze(self.tamanho)
+        self.draw_maze(self.size)
 
-        self.mlx.mlx_put_image_to_window(self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+        self.mlx.mlx_put_image_to_window(
+        self.mlx_ptr, self.win_ptr, self.img_ptr, 0, 0)
+
         self.mlx.mlx_loop(self.mlx_ptr)
 
-
-    # def draw_resolution(self) -> None:
-
-    #     mapa = self.generator.cells 
-    #     inicio = self.config.entry
-    #     fim = self.config.exit_cell
-
-    #     VETORES_DIRECAO = {
-    #         "N": (0, -1),
-    #         "S": (0, 1),
-    #         "E": (1, 0),
-    #         "W": (-1, 0)
-    #     }
-    #     fila = deque([(inicio, [inicio])])
-    #     visitados = {inicio}
-    #     while fila:
-    #         pos_atual, caminho_atual = fila.popleft()
-    #         if pos_atual == fim:
-    #             break
-    #         x, y = pos_atual
-    #         if pos_atual not in mapa:
-    #             continue   
-    #         caminhos_disponiveis = mapa[pos_atual]
-    #         for direcao, pode_passar in caminhos_disponiveis.items():
-    #             if not pode_passar:
-    #                 dx, dy = VETORES_DIRECAO[direcao]
-    #                 vizinho = (x + dx, y + dy)
-    #                 if vizinho not in visitados:
-    #                     visitados.add(vizinho)
-    #                     fila.append((vizinho, caminho_atual + [vizinho]))
-
-
-# mlx.mlx_clear_window(mlx_ptr, win_ptr)
-# mlx.mlx_destroy_image(mlx_ptr, img_ptr)
-    #     if caminho_atual and len(caminho_atual) > 1:
-    #         pontos_linha = []
-
-    #         for x, y in caminho_atual:
-    #             centro_x = self.margin + (x * self.cell_size) + (self.cell_size // 2)
-    #             centro_y = self.margin + (y * self.cell_size) + (self.cell_size // 2)
-
-    #             pontos_linha.append(centro_x)
-    #             pontos_linha.append(centro_y)
-
-    #         self.canvas.create_line(pontos_linha, fill="#149AD8", width=4, capstyle="round", joinstyle="round")
-
-
-
-
-    # def draw(self) -> None:
-    #     self.canvas.delete("all")
-        
-    #     for (x, y), walls in self.cells.items():
-    #         x1 = self.margin + x * self.cell_size
-    #         y1 = self.margin + y * self.cell_size
-    #         x2 = x1 + self.cell_size
-    #         y2 = y1 + self.cell_size
-
-    #         color = self.wall_color
-            
-    #         if (x, y) == self.config.entry:
-    #             self.canvas.create_rectangle(x1+2, y1+2, x2-2, y2-2, fill="#00FF00", outline="")
-    #         elif (x, y) == self.config.exit_cell:
-    #             self.canvas.create_rectangle(x1+2, y1+2, x2-2, y2-2, fill="#FFCC00", outline="")
-    #         if all(walls[i] for i in ["N", "S", "E", "W"]):
-    #             self.canvas.create_rectangle(x1+2, y1+2, x2-2, y2-2, fill="#E21313", outline="")
-    #         if walls["N"]: self.canvas.create_line(x1, y1, x2, y1, fill=color, width=2)
-    #         if walls["S"]: self.canvas.create_line(x1, y2, x2, y2, fill=color, width=2)
-    #         if walls["E"]: self.canvas.create_line(x2, y1, x2, y2, fill=color, width=2)
-    #         if walls["W"]: self.canvas.create_line(x1, y1, x1, y2, fill=color, width=2)
-
-
-    # def action_regenerate(self) -> None:
-    #     self.cells = self.generator.generate(self.config.perfect)
-    #     if self.config.entry[0] == 0: self.cells[self.config.entry]["W"] = False
-    #     if self.config.exit_cell[0] == self.config.width - 1: self.cells[self.config.exit_cell]["E"] = False
-        
-    #     self.draw()
-    #     export_maze(self.cells, self.config)
-
-    # def action_change_color(self) -> None:
-    #     cores = ["cyan", "magenta", "red", "yellow", "white", "orange", "#00FF66"]
-    #     self.wall_color = random.choice([c for c in cores if c != self.wall_color])
-    #     self.draw()
-
-    # def run(self) -> None:
-    #     self.root.mainloop()
+    def draw_resolution(
+            self
+            ) -> list[Tuple[int, int]]:
+        map = self.cells
+        start = self.config.entry
+        end = self.config.exit_cell
+        VETORES_DIRECAO = {
+            "N": (0, -1),
+            "S": (0, 1),
+            "E": (1, 0),
+            "W": (-1, 0)}
+        fila = deque([(start, [start])])
+        visitados = {start}
+        while fila:
+            pos_atual, caminho_atual = fila.popleft()
+            if pos_atual == end:
+                break
+            x, y = pos_atual
+            if pos_atual not in map:
+                continue
+            caminhos_disponiveis = map[pos_atual]
+            for direcao, pode_passar in caminhos_disponiveis.items():
+                if not pode_passar:
+                    dx, dy = VETORES_DIRECAO[direcao]
+                    vizinho = (x + dx, y + dy)
+                    if vizinho not in visitados:
+                        visitados.add(vizinho)
+                        fila.append((vizinho, caminho_atual + [vizinho]))
+        return caminho_atual

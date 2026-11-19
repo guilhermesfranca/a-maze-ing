@@ -1,8 +1,10 @@
 import sys
-from a_maze_ing_FIXED import MazeVisualizer
+from a_maze_ing import MazeVisualizer
 from parse_config import parse_config
 
+
 def main() -> None:
+    """Parse the command line and start the application"""
     if len(sys.argv) != 2:
         print("Uso correto: python3 a_maze_ing.py config.txt")
         sys.exit(1)
@@ -11,6 +13,7 @@ def main() -> None:
 
     visualizer = MazeVisualizer(config)
     visualizer.make()
+
 
 if __name__ == "__main__":
     main()

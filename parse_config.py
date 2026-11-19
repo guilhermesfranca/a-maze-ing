@@ -11,7 +11,6 @@ class MazeConfig:
         self.output_file: str = "maze.txt"
         self.perfect: bool = True
 
-
 def parse_config(filename: str) -> MazeConfig:
     config = MazeConfig()
     try:
