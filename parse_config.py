@@ -11,26 +11,33 @@ class MazeConfig:
         self.output_file: str = "maze.txt"
         self.perfect: bool = True
 
+
 def parse_config(filename: str) -> MazeConfig:
     config = MazeConfig()
     try:
         with open(filename, 'r', encoding='utf-8') as file:
             for line in file:
                 line = line.strip()
-                if not line or line.startswith('#'): continue
-                if '=' not in line: continue
+                if not line or line.startswith('#'):
+                    continue
+                if '=' not in line:
+                    continue
                 key, value = line.split('=', 1)
                 key, value = key.strip(), value.strip()
-                if key == "WIDTH": config.width = int(value)
-                elif key == "HEIGHT": config.height = int(value)
+                if key == "WIDTH":
+                    config.width = int(value)
+                elif key == "HEIGHT":
+                    config.height = int(value)
                 elif key == "ENTRY":
                     vals = value.split(',')
                     config.entry = (int(vals[0]), int(vals[1]))
                 elif key == "EXIT":
                     vals = value.split(',')
                     config.exit_cell = (int(vals[0]), int(vals[1]))
-                elif key == "OUTPUT_FILE": config.output_file = value
-                elif key == "PERFECT": config.perfect = value.lower() == "true"
+                elif key == "OUTPUT_FILE":
+                    config.output_file = value
+                elif key == "PERFECT":
+                    config.perfect = value.lower() == "true"
     except Exception as e:
         print(f"Erro ao ler a configuração: {e}")
         sys.exit(1)
